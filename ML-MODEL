@@ -1,0 +1,50 @@
+using ReservoirComputing, Plots, DelimitedFiles, Random
+
+# Load your customer trend data from a file
+data = readdlm("sample.txt")
+
+# Assuming each row represents a different feature or aspect of the customer trends over time
+# Transpose the data if needed to have time series along columns
+data = transpose(data)
+
+# Set up the data for training and testing
+length(data)
+train_len = 8000
+predict_len = 400
+
+training_input = data[:, 1:train_len]
+training_target = data[:, 2:train_len+1]
+
+testing_input = data[:, train_len+1:train_len+predict_len]
+testing_target = data[:, train_len+2:train_len+predict_len+1]
+
+# Set reservoir computing parameters
+res_size = 100
+res_radius = 0.0
+
+# Initialize random seed for reproducibility
+Random.seed!(69)
+
+# Create the Echo State Network (ESN)
+esn = ESN(training_input;
+    reservoir = RandSparseReservoir(res_size, radius=res_radius),
+    reservoir_driver = GRU())
+
+# Train the ESN
+training_method = StandardRidge(1e-10)
+output_layer = train(esn, training_target, training_method)
+
+# Make predictions
+output = esn(Predictive(testing_input), output_layer)
+
+# Plot the actual vs predicted customer trends
+plot([testing_target' output'], label=["actual" "predicted"],
+    title = "Customer Trend Analysis Prediction",
+    xlabel = "Time",
+    ylabel = "Customer Trends",
+    linewidth = 2.5,
+    size = (800, 600))
+
+using Pkg
+Pkg.add("ReservoirComputing")
+Pkg.add("Plots")
